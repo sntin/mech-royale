@@ -278,6 +278,7 @@ export class Sim {
       if (src && src.id === v.id) dmg *= this.cfg.mech.self_damage_mult
       v.hp -= dmg
       v.dmgTaken += dmg
+      ;((v as any).recent ??= []).push([this.t, src ? src.id : -1, src ? src.hunter : 0])
       ;(v as any).lastW = weapon + ':' + (src ? src.id : 'z')
       if (weapon !== "zone") v.lastCombat = this.t
       const bearing = from ? Math.atan2(from[1] - v.pos[1], from[0] - v.pos[0]) : null

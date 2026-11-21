@@ -20,6 +20,8 @@ export type Params = {
   roofMinE: number
   closeHostile: number
   gunDist: number
+  drops: boolean
+  dropRange: number
 }
 export const defaultParams: Params = {
   fightHpFrac: 0.4,
@@ -36,6 +38,8 @@ export const defaultParams: Params = {
   roofMinE: 8,
   closeHostile: 55,
   gunDist: 70,
+  drops: true,
+  dropRange: 160,
 }
 
 let shared: { w: World; nav: Nav } | null = null
@@ -345,6 +349,20 @@ export class Survivor implements Bot {
         for (const cu of obs.cubes) {
           const d = d2(cu.pos, pos)
           if (d < bd && Math.abs(cu.pos[2] - pos[2]) < 4 && d2(cu.pos, zn.c) < zn.r - 10) (bd = d), (lootGoal = cu.pos)
+        }
+      }
+      if (!lootGoal && this.P.drops) {
+        for (const dr of obs.drops) {
+          const d = d2(dr.pos, pos)
+          const eta = d / 12
+          if (d > this.P.dropRange || dr.lands_in > eta + 6) continue
+          if (d2(dr.pos, zn.c) > zn.r - 10) continue
+          if (dr.holder !== null && dr.holder !== me.id) continue
+          let crowded = false
+          for (const tr of threats) if (d2(tr.pos, dr.pos) < 70) crowded = true
+          if (crowded) continue
+          lootGoal = dr.pos
+          break
         }
       }
       if (lootGoal) mode = "loot"
