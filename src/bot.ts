@@ -19,6 +19,7 @@ export type Params = {
   roofMaxH: number
   roofMinE: number
   closeHostile: number
+  gunDist: number
 }
 export const defaultParams: Params = {
   fightHpFrac: 0.4,
@@ -34,6 +35,7 @@ export const defaultParams: Params = {
   roofMaxH: 40,
   roofMinE: 8,
   closeHostile: 55,
+  gunDist: 70,
 }
 
 let shared: { w: World; nav: Nav } | null = null
@@ -371,7 +373,7 @@ export class Survivor implements Bot {
     } else if (mode === "fight" && target) {
       const d = d2(target.pos, pos)
       const has = (k: string) => this.weaponSlot(obs, k) >= 0 && (me.weapons[this.weaponSlot(obs, k)]!.cooldown < 0.5 || k === "gun")
-      let want = 70
+      let want = this.P.gunDist
       if (has("lightning") && me.energy > 20) want = 25
       else if (has("laser")) want = 110
       else if (has("mortar")) want = 90
@@ -548,6 +550,8 @@ export class Survivor implements Bot {
     }
 
     act.move = move
+    // boost in the air means jetting upward: only when climbing or unsticking
+    if (!me.grounded && this.climbStart < 0 && obs.t >= p.unstickUntil) boost = false
     act.boost = boost
     act.jump = jump
     act.aim = aim

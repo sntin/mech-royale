@@ -49,6 +49,7 @@ for (let k = 0; k < +n; k++) {
   while (!sim.ended) {
     sim.step()
     const u = sim.mechs[ourSlot]
+    if (u.alive) (u as any).w2 = u.weapons[1]?.kind ?? '-'
     if (process.env.TRACE && u.alive && sim.tick % 10 === 0) {
       const near = sim.mechs.filter((m) => m !== u && m.alive).map((m) => [m.id, Math.round(Math.hypot(m.pos[0] - u.pos[0], m.pos[1] - u.pos[1]))]).filter((x) => x[1] < 150)
       console.log(sim.t.toFixed(1), (u.bot as any).lastMode, Math.round(u.hp), u.pos.map((x) => x.toFixed(0)).join(","), 'e' + Math.round(u.energy), 'w' + u.weapons.map((w) => w?.kind).join('/'), 'near', JSON.stringify(near), 'hunters', JSON.stringify([...squad.cached.hunters]))
@@ -56,7 +57,7 @@ for (let k = 0; k < +n; k++) {
   }
   const us = sim.mechs[ourSlot]
   const houseDead = sim.mechs.filter((m) => m.house && !m.alive).length
-  out.push({ seed, place: us.place, score: 16 - us.place, deathT: us.alive ? sim.t : +us.deathT.toFixed(1), kills: us.kills, cubes: us.cubes, taken: Math.round(us.dmgTaken), dealt: Math.round(us.dmgDealt), houseDead, ms: Math.round(performance.now() - t0), maxAct: +Math.max(0, ...times).toFixed(1), over20: times.filter((x) => x > 20).length })
+  out.push({ seed, place: us.place, score: 16 - us.place, deathT: us.alive ? sim.t : +us.deathT.toFixed(1), kills: us.kills, cubes: us.cubes, taken: Math.round(us.dmgTaken), dealt: Math.round(us.dmgDealt), houseDead, ms: Math.round(performance.now() - t0), w2: (us as any).w2, maxAct: +Math.max(0, ...times).toFixed(1), over20: times.filter((x) => x > 20).length })
   console.log(JSON.stringify(out.at(-1)))
   if (process.env.LOG) console.log(sim.log.join('\n'))
 }
