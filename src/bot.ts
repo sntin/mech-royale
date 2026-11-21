@@ -22,6 +22,7 @@ export type Params = {
   gunDist: number
   drops: boolean
   farm: boolean
+  berserk: boolean
   dodge: boolean
   focus: boolean
   reengageHp: number
@@ -56,6 +57,7 @@ export const defaultParams: Params = {
   gunDist: 70,
   drops: true,
   farm: true,
+  berserk: false,
   dodge: false,
   focus: false,
   reengageHp: 1.0,
@@ -437,9 +439,9 @@ export class Survivor implements Bot {
     const extra = Math.max(0, nThreat - 1) * this.P.retreatPerExtra
     const weak = (hpFrac < this.P.fightHpFrac + extra || (this.P.reengageHp < 1 && this.healing && !(target && d2(target.pos, pos) < 30))) && (target ? (target.hp ?? 1400) > me.hp * 0.7 : true)
     const recentlyHurt = obs.t - this.lastHurtT < 1.5
-    if (nThreat > 0 && (outnumbered || weak)) mode = "retreat"
+    if (!this.P.berserk && nThreat > 0 && (outnumbered || weak)) mode = "retreat"
     else if (target && d2(target.pos, pos) < this.P.engageRange) mode = "fight"
-    else if (recentlyHurt && !target) mode = "retreat"
+    else if (!this.P.berserk && recentlyHurt && !target) mode = "retreat"
     else mode = "travel"
 
     // loot opportunities (only when no fight)
