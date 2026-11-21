@@ -22,6 +22,11 @@ export type Params = {
   gunDist: number
   drops: boolean
   farm: boolean
+  focus: boolean
+  reengageHp: number
+  retreatPerExtra: number
+  farmHp: number
+  holdFire: boolean
   lootR: number
   spinScan: boolean
   strafeMin: number
@@ -50,6 +55,11 @@ export const defaultParams: Params = {
   gunDist: 70,
   drops: true,
   farm: true,
+  focus: false,
+  reengageHp: 1.0,
+  retreatPerExtra: 0,
+  farmHp: 0.6,
+  holdFire: false,
   lootR: 90,
   spinScan: false,
   strafeMin: 0.5,
@@ -291,6 +301,9 @@ export class Survivor implements Bot {
     return this.p.w.los(me.pos[0], me.pos[1], mz, t.pos[0], t.pos[1], t.pos[2] + h * 0.5) || this.p.w.los(me.pos[0], me.pos[1], mz, t.pos[0], t.pos[1], t.pos[2] + h * 0.9)
   }
 
+  curTarget = -1
+  healing = false
+
   pickUpgrade(obs: Observation): number {
     const ch = obs.offer!.choices
     let bi = 0, br = 1e9
@@ -342,9 +355,15 @@ export class Survivor implements Bot {
       // prefer weakest among close ones
       let bs = 1e9
       for (const e of hostile) {
-        const s = d2(e.pos, pos) + (e.hp ?? 1400) * 0.05
+        let s = d2(e.pos, pos) + (e.hp ?? 1400) * 0.05
+        if (this.P.focus) {
+          if (e.id === this.curTarget) s -= 40
+          if (!this.losTo(obs, e)) s += 60
+          s += ((e.hp ?? 1400) / (e.max_hp ?? 1400)) * 40
+        }
         if (s < bs) (bs = s), (target = e)
       }
+      if (target) this.curTarget = target.id
     }
     const npcs = obs.mechs.filter((m) => m.kind === "npc")
     // npcs attacking us (close)
@@ -363,7 +382,11 @@ export class Survivor implements Bot {
     }
 
     const outnumbered = nThreat >= 2 && enemyStrength > me.hp * 1.3
-    const weak = hpFrac < this.P.fightHpFrac && (target ? (target.hp ?? 1400) > me.hp * 0.7 : true)
+    // regen state: once we bailed out, avoid new fights until healed (unless attacked up close)
+    if (hpFrac < this.P.fightHpFrac) this.healing = true
+    if (hpFrac >= this.P.reengageHp) this.healing = false
+    const extra = Math.max(0, nThreat - 1) * this.P.retreatPerExtra
+    const weak = (hpFrac < this.P.fightHpFrac + extra || (this.P.reengageHp < 1 && this.healing && !(target && d2(target.pos, pos) < 30))) && (target ? (target.hp ?? 1400) > me.hp * 0.7 : true)
     const recentlyHurt = obs.t - this.lastHurtT < 1.5
     if (nThreat > 0 && (outnumbered || weak)) mode = "retreat"
     else if (target && d2(target.pos, pos) < this.P.engageRange) mode = "fight"
@@ -534,9 +557,9 @@ export class Survivor implements Bot {
       let bd = farmR
       for (const n of npcs) {
         const d = d2(n.pos, pos)
-        if (d < bd && me.hp > me.max_hp * 0.6) (bd = d), (farm = n)
+        if (d < bd && me.hp > me.max_hp * this.P.farmHp) (bd = d), (farm = n)
       }
-      for (const c of obs.crates) {
+      if (me.hp > me.max_hp * this.P.farmHp * 0.8) for (const c of obs.crates) {
         const d = d2(c.pos, pos)
         if (d < bd * 0.8) (bd = d / 0.8), (farm = { id: c.id, pos: c.pos, vel: [0, 0, 0], kind: "crate" })
       }
@@ -590,6 +613,10 @@ export class Survivor implements Bot {
       }
     }
     // gun reload when idle
+    // hold fire (keep the aim) when the target is behind a wall
+    if (this.P.holdFire && tgt && tgt === shootAt && !this.losTo(obs, tgt)) {
+      for (let k = 0; k < 2; k++) if (me.weapons[k]?.kind !== "laser") fire[k] = false
+    }
     const g = me.weapons.find((w) => w?.kind === "gun")
     if (g && !tgt && (g.ammo ?? 12) < (g.stats.mag ?? 12) * 0.6 && (g.reload ?? 0) <= 0) act.reload = true
 

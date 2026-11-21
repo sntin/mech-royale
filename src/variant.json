@@ -1,1 +1,1 @@
-{ "drops": false, "exposureW": 0, "lootR": 160, "weaponPref": { "laser": 3, "lightning": 2.5, "mortar": 1, "gun": 0 } }
+{ "drops": false, "exposureW": 0, "focus": true, "reengageHp": 0.85, "retreatPerExtra": 0.15 }
