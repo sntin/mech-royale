@@ -22,6 +22,7 @@ export type Params = {
   gunDist: number
   drops: boolean
   farm: boolean
+  dodge: boolean
   focus: boolean
   reengageHp: number
   retreatPerExtra: number
@@ -55,6 +56,7 @@ export const defaultParams: Params = {
   gunDist: 70,
   drops: true,
   farm: true,
+  dodge: false,
   focus: false,
   reengageHp: 1.0,
   retreatPerExtra: 0,
@@ -304,6 +306,53 @@ export class Survivor implements Bot {
   curTarget = -1
   healing = false
 
+  // sidestep vector for bullets that would pass close in the next 0.8 s, or away from mortar impacts
+  dodgeVec(obs: Observation): number[] | null {
+    const me = obs.self
+    const c = [me.pos[0], me.pos[1], me.pos[2] + 4.5]
+    let dx = 0, dy = 0, any = false
+    const g = this.cfg.weapons.mortar.gravity
+    for (const pr of obs.projectiles) {
+      const v = pr.vel
+      if (pr.kind === "mortar") {
+        // predict impact: step until below ground near us
+        let p = [...pr.pos], vv = [...v]
+        for (let k = 0; k < 60; k++) {
+          const dt = 0.1
+          p = [p[0] + vv[0] * dt, p[1] + vv[1] * dt, p[2] + vv[2] * dt]
+          vv[2] -= g * dt
+          if (vv[2] < 0 && p[2] <= this.p.w.surface(p[0], p[1], p[2] + 1) + 0.5) break
+        }
+        const d = d2(p, c)
+        if (d < 10) {
+          const a = Math.atan2(c[1] - p[1], c[0] - p[0])
+          dx += Math.cos(a) * 1.5
+          dy += Math.sin(a) * 1.5
+          any = true
+        }
+        continue
+      }
+      const rel = [c[0] - pr.pos[0], c[1] - pr.pos[1], c[2] - pr.pos[2]]
+      const vv2 = v[0] * v[0] + v[1] * v[1] + v[2] * v[2]
+      if (vv2 < 1) continue
+      const t = (rel[0] * v[0] + rel[1] * v[1] + rel[2] * v[2]) / vv2
+      if (t < 0 || t > 0.8) continue
+      const cx = pr.pos[0] + v[0] * t - c[0], cy = pr.pos[1] + v[1] * t - c[1], cz = pr.pos[2] + v[2] * t - c[2]
+      const miss = Math.hypot(cx, cy, cz)
+      if (miss > 4.5) continue
+      // move perpendicular to bullet heading, away from the closest-approach side
+      const h = Math.hypot(v[0], v[1]) || 1
+      let px = -v[1] / h, py = v[0] / h
+      if (px * cx + py * cy > 0) (px = -px), (py = -py)
+      dx += px
+      dy += py
+      any = true
+    }
+    if (!any) return null
+    const L = Math.hypot(dx, dy) || 1
+    return [dx / L, dy / L]
+  }
+
   pickUpgrade(obs: Observation): number {
     const ch = obs.offer!.choices
     let bi = 0, br = 1e9
@@ -531,6 +580,19 @@ export class Survivor implements Bot {
       }
     }
 
+    // dodge incoming projectiles
+    if (this.P.dodge && this.climbStart < 0) {
+      const dv = this.dodgeVec(obs)
+      if (dv) {
+        const mx = move[0] * 0.4 + dv[0], my = move[1] * 0.4 + dv[1]
+        const L = Math.hypot(mx, my) || 1
+        const cand = [mx / L, my / L]
+        if (p.nav.isFree(pos[0] + cand[0] * 4, pos[1] + cand[1] * 4) || !p.nav.isFree(pos[0], pos[1])) {
+          move = cand
+          if (me.grounded && me.energy > 15) boost = true
+        }
+      }
+    }
     // unstick
     const wantMove = Math.hypot(move[0], move[1]) > 0.3
     if (obs.t < p.unstickUntil) {
