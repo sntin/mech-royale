@@ -1,1 +1,1 @@
-{ "farm": false, "silent": true, "closeHostile": 35 }
+{ "passive": false, "drops": false, "exposureW": 0 }
