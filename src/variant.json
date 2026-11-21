@@ -1,1 +1,1 @@
-{ "drops": false, "exposureW": 0, "dodge": true, "berserk": true, "gunDist": 110, "engageRange": 200 }
+{ "drops": false, "exposureW": 0, "dodge": true, "berserk": true, "gunDist": 110, "engageRange": 200, "passive": false }
