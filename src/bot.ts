@@ -24,6 +24,7 @@ export type Params = {
   drops: boolean
   farm: boolean
   fightLoot: boolean
+  swapR: number
   fightFetch: number
   pickMemory: boolean
   berserk: boolean
@@ -65,6 +66,7 @@ export const defaultParams: Params = {
   drops: true,
   farm: true,
   fightLoot: false,
+  swapR: 90,
   fightFetch: 110,
   pickMemory: false,
   berserk: false,
@@ -485,7 +487,7 @@ export class Survivor implements Bot {
         const v = want(pk.kind)
         if (v <= 0) continue
         const d = d2(pk.pos, pos)
-        if (d > (fighting ? this.P.fightFetch : w[1] ? 90 : this.P.lootR) || Math.abs(pk.pos[2] - pos[2]) > 6) continue
+        if (d > (fighting ? this.P.fightFetch : w[1] ? this.P.swapR : this.P.lootR) || Math.abs(pk.pos[2] - pos[2]) > 6) continue
         if (d2(pk.pos, zn.c) > zn.r - 10) continue
         const s = v * 100 - d
         if (s > bs) (bs = s), (lootGoal = pk.pos), (lootTake = pk.id)
