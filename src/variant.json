@@ -1,1 +1,1 @@
-{ "drops": false, "exposureW": 0, "dodge": true, "berserk": true, "gunDist": 110, "engageRange": 200, "fightLoot": true, "pickMemory": true, "fightFetch": 200, "lootR": 220, "swapR": 220, "drops": true, "dropRange": 300, "fightCubeR": 60, "farmUntil": 100000 }
+{ "drops": false, "exposureW": 0, "dodge": true, "berserk": true, "gunDist": 110, "engageRange": 200, "fightLoot": true, "pickMemory": true, "fightFetch": 200, "lootR": 220, "salt": 7 }
