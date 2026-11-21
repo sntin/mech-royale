@@ -12,6 +12,7 @@ export type Params = {
   zoneMargin: number
   upgradeOrder: string[]
   weaponPref: Record<string, number>
+  lightClose: boolean
   debug: boolean
   passive: boolean
   roof: boolean
@@ -50,6 +51,7 @@ export const defaultParams: Params = {
   zoneMargin: 18,
   upgradeOrder: ["plating", "armor", "nanites", "gun_damage", "gun_rate", "servos", "laser_damage", "lightning_damage", "capacitor", "reactor", "gyros", "jets", "sensors", "gun_mag", "gun_velocity"],
   weaponPref: { lightning: 3, laser: 2.5, mortar: 1, gun: 0 },
+  lightClose: true,
   debug: true,
   passive: true,
   roof: false,
@@ -311,6 +313,7 @@ export class Survivor implements Bot {
     return this.p.w.los(me.pos[0], me.pos[1], mz, t.pos[0], t.pos[1], t.pos[2] + h * 0.5) || this.p.w.los(me.pos[0], me.pos[1], mz, t.pos[0], t.pos[1], t.pos[2] + h * 0.9)
   }
 
+  stuckN = 0
   pickMem = new Map<number, { id: number; kind: string; pos: number[]; t: number }>()
   curTarget = -1
   healing = false
@@ -530,8 +533,8 @@ export class Survivor implements Bot {
       const d = d2(target.pos, pos)
       const has = (k: string) => this.weaponSlot(obs, k) >= 0 && (me.weapons[this.weaponSlot(obs, k)]!.cooldown < 0.5 || k === "gun")
       let want = this.P.gunDist
-      if (has("lightning") && me.energy > 20) want = 25
-      else if (has("laser")) want = 110
+      if (has("lightning") && me.energy > 20 && this.P.lightClose) want = 25
+      else if (has("laser")) want = Math.max(110, this.P.gunDist)
       else if (has("mortar")) want = 90
       const toT = Math.atan2(target.pos[1] - pos[1], target.pos[0] - pos[0])
       if (obs.t > this.strafeUntil) {
@@ -615,6 +618,7 @@ export class Survivor implements Bot {
       boost = true
     } else if (this.climbStart < 0 && p.stuck(wantMove)) {
       p.unstickUntil = obs.t + 0.9
+      this.stuckN = (this.stuckN ?? 0) + 1
       const a = Math.atan2(move[1], move[0]) + (p.rnd() - 0.5) * 2.5
       p.unstickDir = [Math.cos(a), Math.sin(a)]
       p.hist.length = 0
