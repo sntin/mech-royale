@@ -21,6 +21,8 @@ export type Params = {
   closeHostile: number
   gunDist: number
   drops: boolean
+  farm: boolean
+  silent: boolean
   exposureW: number
   dropRange: number
 }
@@ -40,6 +42,8 @@ export const defaultParams: Params = {
   closeHostile: 55,
   gunDist: 70,
   drops: true,
+  farm: true,
+  silent: false,
   exposureW: 0.1,
   dropRange: 160,
 }
@@ -462,7 +466,7 @@ export class Survivor implements Bot {
       // walk silently near camp; hurry if zone pressing
       const urgent = zoneUrgent || dg > 150
       boost = urgent && me.energy > 30 && (tooFarFromZone || dg > 60)
-      if (!urgent && dg < 25) move = [move[0] * 0.4, move[1] * 0.4]
+      if (!urgent && (dg < 25 || this.P.silent)) move = [move[0] * 0.4, move[1] * 0.4]
       mode = dg > 4 ? "travel" : "camp"
     }
     if (zoneUrgent && mode !== "fight") boost = me.energy > 15 || boost
@@ -499,7 +503,7 @@ export class Survivor implements Bot {
     if (!shootAt && hostileNpc) shootAt = hostileNpc
     // farm crates/npcs when calm
     let farm: any = null
-    if (!shootAt && !zoneUrgent && mode !== "retreat") {
+    if (this.P.farm && !shootAt && !zoneUrgent && mode !== "retreat") {
       const farmR = obs.t < this.P.farmUntil ? 90 : 45
       let bd = farmR
       for (const n of npcs) {
