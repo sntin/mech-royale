@@ -1,6 +1,6 @@
 import { run, log } from "./mechfight.ts"
 import { Survivor, getMap } from "./bot.ts"
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 
 run((hello) => {
   let dir = hello.map?.dir ?? "/arena"
@@ -9,7 +9,11 @@ run((hello) => {
   const { nav } = getMap(dir)
   // warm up the JIT on pathfinding
   for (let k = 0; k < 6; k++) nav.path(-300 + k * 100, -200, 300 - k * 80, 250)
-  const bot = new Survivor(hello, { debug: false }, dir)
+  let v = {}
+  try {
+    v = JSON.parse(readFileSync(new URL("./variant.json", import.meta.url), "utf8"))
+  } catch {}
+  const bot = new Survivor(hello, { debug: false, ...v }, dir)
   log(`ready in ${Math.round(performance.now() - t0)} ms`)
   return bot
 })

@@ -21,6 +21,7 @@ export type Params = {
   closeHostile: number
   gunDist: number
   drops: boolean
+  exposureW: number
   dropRange: number
 }
 export const defaultParams: Params = {
@@ -39,6 +40,7 @@ export const defaultParams: Params = {
   closeHostile: 55,
   gunDist: 70,
   drops: true,
+  exposureW: 0.1,
   dropRange: 160,
 }
 
@@ -109,6 +111,7 @@ export class Survivor implements Bot {
     const nav = this.p.nav
     let best: number[] = sc.c, bs = -1e9
     const late = obs.t > 250
+    const cands: { x: number; y: number; s: number }[] = []
     for (let k = 0; k < 160; k++) {
       const a = this.p.rnd() * Math.PI * 2, d = Math.sqrt(this.p.rnd()) * R * (late ? 0.5 : 0.8)
       const x = sc.c[0] + Math.cos(a) * d, y = sc.c[1] + Math.sin(a) * d
@@ -120,9 +123,29 @@ export class Survivor implements Bot {
       s -= d2([x, y], me) * 0.04 // travel cost
       s -= (d / Math.max(30, R)) * 6 // prefer toward center
       for (const tr of this.p.tracks.values()) if (tr.kind === "mech" && obs.t - tr.t < 20) s -= Math.max(0, 120 - d2(tr.pos, [x, y])) * 0.15
-      if (s > bs) (bs = s), (best = [x, y])
+      cands.push({ x, y, s })
+    }
+    cands.sort((a, b) => b.s - a.s)
+    for (const c of cands.slice(0, this.P.exposureW > 0 ? 30 : 1)) {
+      const s = c.s - (this.P.exposureW > 0 ? this.exposure(c.x, c.y) * this.P.exposureW : 0)
+      if (s > bs) (bs = s), (best = [c.x, c.y])
     }
     return best
+  }
+
+  // mean open sightline length (m) from a ground spot at eye height, 12 directions, capped at 150
+  exposure(x: number, y: number): number {
+    const w = this.p.w
+    const z = w.terrain(x, y) + 8
+    let tot = 0
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2
+      const cx = Math.cos(a), cy = Math.sin(a)
+      let d = 4
+      for (; d < 150; d += 2.5) if (w.solid(x + cx * d, y + cy * d, z)) break
+      tot += d
+    }
+    return tot / 12
   }
 
   findCover(obs: Observation, threats: Track[]): number[] | null {
