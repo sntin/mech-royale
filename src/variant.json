@@ -1,1 +1,1 @@
-{ "drops": false, "exposureW": 0, "focus": true, "reengageHp": 0.85, "retreatPerExtra": 0.15 }
+{ "drops": false, "exposureW": 0, "dodge": true }
