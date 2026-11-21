@@ -29,6 +29,8 @@ export type Params = {
   berserk: boolean
   dodge: boolean
   focus: boolean
+  secure: boolean
+  finish: number
   reengageHp: number
   retreatPerExtra: number
   farmHp: number
@@ -68,6 +70,8 @@ export const defaultParams: Params = {
   berserk: false,
   dodge: false,
   focus: false,
+  secure: false,
+  finish: 0,
   reengageHp: 1.0,
   retreatPerExtra: 0,
   farmHp: 0.6,
@@ -316,6 +320,7 @@ export class Survivor implements Bot {
   stuckN = 0
   pickMem = new Map<number, { id: number; kind: string; pos: number[]; t: number }>()
   curTarget = -1
+  curTargetT = -1e9
   healing = false
 
   // sidestep vector for bullets that would pass close in the next 0.8 s, or away from mortar impacts
@@ -416,7 +421,11 @@ export class Survivor implements Bot {
       // prefer weakest among close ones
       let bs = 1e9
       for (const e of hostile) {
-        let s = d2(e.pos, pos) + (e.hp ?? 1400) * 0.05
+        let s = d2(e.pos, pos) + (e.hp ?? 1400) * (this.P.secure ? 0.1 : 0.05)
+        if (this.P.secure) {
+          if ((e.hp ?? 1400) <= 0.3 * (e.max_hp ?? 1400)) s -= 200
+          if (e.id === this.curTarget && obs.t - this.curTargetT < 2) s -= 200
+        }
         if (this.P.focus) {
           if (e.id === this.curTarget) s -= 40
           if (!this.losTo(obs, e)) s += 60
@@ -424,7 +433,7 @@ export class Survivor implements Bot {
         }
         if (s < bs) (bs = s), (target = e)
       }
-      if (target) this.curTarget = target.id
+      if (target) (this.curTarget = target.id), (this.curTargetT = obs.t)
     }
     const npcs = obs.mechs.filter((m) => m.kind === "npc")
     // npcs attacking us (close)
@@ -536,6 +545,7 @@ export class Survivor implements Bot {
       if (has("lightning") && me.energy > 20 && this.P.lightClose) want = 25
       else if (has("laser")) want = Math.max(110, this.P.gunDist)
       else if (has("mortar")) want = 90
+      if (this.P.finish > 0 && (target.hp ?? 1400) < 0.38 * (target.max_hp ?? 1400) && hpFrac > 0.42 && nThreat <= 2) want = Math.min(want, this.P.finish)
       const toT = Math.atan2(target.pos[1] - pos[1], target.pos[0] - pos[0])
       if (obs.t > this.strafeUntil) {
         this.strafeDir = p.rnd() < 0.5 ? -1 : 1
