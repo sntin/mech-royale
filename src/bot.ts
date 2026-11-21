@@ -22,6 +22,9 @@ export type Params = {
   gunDist: number
   drops: boolean
   farm: boolean
+  fightLoot: boolean
+  fightFetch: number
+  pickMemory: boolean
   berserk: boolean
   dodge: boolean
   focus: boolean
@@ -57,6 +60,9 @@ export const defaultParams: Params = {
   gunDist: 70,
   drops: true,
   farm: true,
+  fightLoot: false,
+  fightFetch: 110,
+  pickMemory: false,
   berserk: false,
   dodge: false,
   focus: false,
@@ -305,6 +311,7 @@ export class Survivor implements Bot {
     return this.p.w.los(me.pos[0], me.pos[1], mz, t.pos[0], t.pos[1], t.pos[2] + h * 0.5) || this.p.w.los(me.pos[0], me.pos[1], mz, t.pos[0], t.pos[1], t.pos[2] + h * 0.9)
   }
 
+  pickMem = new Map<number, { id: number; kind: string; pos: number[]; t: number }>()
   curTarget = -1
   healing = false
 
@@ -447,7 +454,12 @@ export class Survivor implements Bot {
     // loot opportunities (only when no fight)
     let lootGoal: number[] | null = null
     let lootTake: number | null = null
-    if (mode === "travel" && !zoneUrgent) {
+    // remember weapon pickups we have seen
+    for (const pk of obs.pickups) this.pickMem.set(pk.id, { id: pk.id, kind: pk.kind, pos: pk.pos, t: obs.t })
+    const visIds = new Set(obs.pickups.map((q) => q.id))
+    for (const [id, q] of this.pickMem) if (!visIds.has(id) && (d2(q.pos, pos) < 25 || obs.t - q.t > 120)) this.pickMem.delete(id)
+    const fighting = this.P.fightLoot && mode === "fight"
+    if ((mode === "travel" || fighting) && !zoneUrgent) {
       const w = me.weapons
       const want = (kind: string) => {
         if (w.some((x) => x?.kind === kind)) return 0
@@ -456,24 +468,24 @@ export class Survivor implements Bot {
         return (this.P.weaponPref[kind] ?? 0) - cur - 0.5
       }
       let bs = 0
-      for (const pk of obs.pickups) {
+      for (const pk of this.P.pickMemory ? [...this.pickMem.values()] : obs.pickups) {
         if ((this.lootBan.get(pk.id) ?? 0) > obs.t) continue
         const v = want(pk.kind)
         if (v <= 0) continue
         const d = d2(pk.pos, pos)
-        if (d > (w[1] ? 90 : this.P.lootR) || Math.abs(pk.pos[2] - pos[2]) > 6) continue
+        if (d > (fighting ? this.P.fightFetch : w[1] ? 90 : this.P.lootR) || Math.abs(pk.pos[2] - pos[2]) > 6) continue
         if (d2(pk.pos, zn.c) > zn.r - 10) continue
         const s = v * 100 - d
         if (s > bs) (bs = s), (lootGoal = pk.pos), (lootTake = pk.id)
       }
       if (!lootGoal) {
-        let bd = obs.t < this.P.farmUntil ? 60 : 30
+        let bd = fighting ? 30 : obs.t < this.P.farmUntil ? 60 : 30
         for (const cu of obs.cubes) {
           const d = d2(cu.pos, pos)
           if (d < bd && Math.abs(cu.pos[2] - pos[2]) < 4 && d2(cu.pos, zn.c) < zn.r - 10) (bd = d), (lootGoal = cu.pos)
         }
       }
-      if (!lootGoal && this.P.drops) {
+      if (!lootGoal && this.P.drops && !fighting) {
         for (const dr of obs.drops) {
           const d = d2(dr.pos, pos)
           const eta = d / 12
