@@ -22,6 +22,11 @@ export type Params = {
   gunDist: number
   drops: boolean
   farm: boolean
+  strafeMin: number
+  strafeVar: number
+  fightBoost: number
+  chase: boolean
+  losGate: boolean
   silent: boolean
   exposureW: number
   dropRange: number
@@ -43,6 +48,11 @@ export const defaultParams: Params = {
   gunDist: 70,
   drops: true,
   farm: true,
+  strafeMin: 0.5,
+  strafeVar: 0.9,
+  fightBoost: 0,
+  chase: false,
+  losGate: false,
   silent: false,
   exposureW: 0.1,
   dropRange: 160,
@@ -60,7 +70,7 @@ export function getMap(dir: string) {
 type Mode = "travel" | "camp" | "fight" | "retreat" | "loot" | "farm"
 
 export class Survivor implements Bot {
-  name = "survivor"
+  name = "sntin-mech"
   p: Pilot
   P: Params
   cfg: any
@@ -270,6 +280,13 @@ export class Survivor implements Bot {
     return { move: [Math.cos(a), Math.sin(a)], jump: me.grounded, boost: !me.grounded || pos[2] < r.z, mode: "travel" }
   }
 
+  losTo(obs: Observation, t: ActorObs): boolean {
+    const me = obs.self
+    const mz = me.pos[2] + (me.stats.muzzle_height ?? 7)
+    const h = t.kind === "mech" ? 9 * (1 + 0.05 * (t.cubes ?? 0)) : 3.5
+    return this.p.w.los(me.pos[0], me.pos[1], mz, t.pos[0], t.pos[1], t.pos[2] + h * 0.5) || this.p.w.los(me.pos[0], me.pos[1], mz, t.pos[0], t.pos[1], t.pos[2] + h * 0.9)
+  }
+
   pickUpgrade(obs: Observation): number {
     const ch = obs.offer!.choices
     let bi = 0, br = 1e9
@@ -415,6 +432,10 @@ export class Survivor implements Bot {
       goal = this.retreatGoal ?? goal
       move = p.steer(goal)
       boost = me.energy > 25
+    } else if (mode === "fight" && target && this.P.chase && !this.losTo(obs, target)) {
+      // no line of fire: close in to regain it
+      move = p.steer(target.pos)
+      boost = me.energy > 40 && d2(target.pos, pos) > 40
     } else if (mode === "fight" && target) {
       const d = d2(target.pos, pos)
       const has = (k: string) => this.weaponSlot(obs, k) >= 0 && (me.weapons[this.weaponSlot(obs, k)]!.cooldown < 0.5 || k === "gun")
@@ -425,7 +446,7 @@ export class Survivor implements Bot {
       const toT = Math.atan2(target.pos[1] - pos[1], target.pos[0] - pos[0])
       if (obs.t > this.strafeUntil) {
         this.strafeDir = p.rnd() < 0.5 ? -1 : 1
-        this.strafeUntil = obs.t + 0.5 + p.rnd() * 0.9
+        this.strafeUntil = obs.t + this.P.strafeMin + p.rnd() * this.P.strafeVar
       }
       const perp = toT + (this.strafeDir * Math.PI) / 2
       let radial = d > want + 15 ? 1 : d < want - 15 ? -1 : 0
@@ -441,6 +462,7 @@ export class Survivor implements Bot {
         move = [Math.cos(perp2), Math.sin(perp2)]
         if (!p.nav.isFree(pos[0] + move[0] * 6, pos[1] + move[1] * 6)) move = p.steer(radial >= 0 ? target.pos : this.camp ?? sc.c)
       }
+      if (this.P.fightBoost && me.energy > this.P.fightBoost) boost = true
       // laser dodge
       if (target.charging) {
         const ang = Math.atan2(pos[1] - target.pos[1], pos[0] - target.pos[0])
@@ -516,7 +538,7 @@ export class Survivor implements Bot {
       }
       if (farm && farm.kind !== "crate" && farm.kind !== "npc") farm = null
     }
-    const tgt: any = shootAt ?? farm
+    const tgt: any = shootAt && (!this.P.losGate || this.losTo(obs, shootAt)) ? shootAt : shootAt && this.P.losGate ? null : farm
     if (tgt) {
       const zOff = tgt.kind === "mech" ? 4.5 * (1 + 0.05 * (tgt.cubes ?? 0)) : tgt.kind === "npc" ? 1.75 : 1.2
       const d = d2(tgt.pos, pos)

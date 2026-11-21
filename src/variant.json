@@ -1,1 +1,1 @@
-{ "passive": false, "drops": false, "exposureW": 0 }
+{ "drops": false, "exposureW": 0, "losGate": true }
