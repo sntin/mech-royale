@@ -25,6 +25,8 @@ export type Params = {
   farm: boolean
   fightLoot: boolean
   swapR: number
+  salt: number
+  fightCubeR: number
   fightFetch: number
   pickMemory: boolean
   berserk: boolean
@@ -67,6 +69,8 @@ export const defaultParams: Params = {
   farm: true,
   fightLoot: false,
   swapR: 90,
+  salt: 0,
+  fightCubeR: 30,
   fightFetch: 110,
   pickMemory: false,
   berserk: false,
@@ -127,7 +131,7 @@ export class Survivor implements Bot {
     const { w, nav } = getMap(dir ?? hello.map.dir)
     this.P = { ...defaultParams, ...params }
     this.cfg = hello.config
-    this.p = new Pilot(hello, w, nav, (hello.seed as number) || 12345)
+    this.p = new Pilot(hello, w, nav, (((hello.seed as number) || 12345) ^ (this.P.salt | 0)) || 12345)
     this.myId = hello.slot as number
   }
 
@@ -493,7 +497,7 @@ export class Survivor implements Bot {
         if (s > bs) (bs = s), (lootGoal = pk.pos), (lootTake = pk.id)
       }
       if (!lootGoal) {
-        let bd = fighting ? 30 : obs.t < this.P.farmUntil ? 60 : 30
+        let bd = fighting ? this.P.fightCubeR : obs.t < this.P.farmUntil ? 60 : 30
         for (const cu of obs.cubes) {
           const d = d2(cu.pos, pos)
           if (d < bd && Math.abs(cu.pos[2] - pos[2]) < 4 && d2(cu.pos, zn.c) < zn.r - 10) (bd = d), (lootGoal = cu.pos)
