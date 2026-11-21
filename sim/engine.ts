@@ -286,6 +286,7 @@ export class Sim {
       if (src && src.id !== v.id) {
         src.lastCombat = this.t
         src.dmgDealt += dmg
+        ;((src as any).byW ??= {})[weapon] = Math.round((((src as any).byW[weapon]) ?? 0) + dmg)
         src.events.push({ type: "hit", target: v.id, amount: Math.round(dmg), weapon, ...(effect ? { effect } : {}), ...(rear ? { rear } : {}) } as any)
       }
       if (v.hp <= 0) this.kill(v, src)

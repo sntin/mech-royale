@@ -22,6 +22,8 @@ export type Params = {
   gunDist: number
   drops: boolean
   farm: boolean
+  lootR: number
+  spinScan: boolean
   strafeMin: number
   strafeVar: number
   fightBoost: number
@@ -48,6 +50,8 @@ export const defaultParams: Params = {
   gunDist: 70,
   drops: true,
   farm: true,
+  lootR: 90,
+  spinScan: false,
   strafeMin: 0.5,
   strafeVar: 0.9,
   fightBoost: 0,
@@ -383,7 +387,7 @@ export class Survivor implements Bot {
         const v = want(pk.kind)
         if (v <= 0) continue
         const d = d2(pk.pos, pos)
-        if (d > 90 || Math.abs(pk.pos[2] - pos[2]) > 6) continue
+        if (d > (w[1] ? 90 : this.P.lootR) || Math.abs(pk.pos[2] - pos[2]) > 6) continue
         if (d2(pk.pos, zn.c) > zn.r - 10) continue
         const s = v * 100 - d
         if (s > bs) (bs = s), (lootGoal = pk.pos), (lootTake = pk.id)
@@ -601,7 +605,8 @@ export class Survivor implements Bot {
         if (s && obs.t - s.t < 2.5) look = s.bearing
       }
       if (look === null) {
-        if (mode === "travel" && Math.hypot(move[0], move[1]) > 0.3) {
+        if (this.P.spinScan && !me.weapons[1] && obs.t < 90) this.scanYaw = wrap(this.scanYaw + 0.5)
+        else if (mode === "travel" && Math.hypot(move[0], move[1]) > 0.3) {
           const mv = Math.atan2(move[1], move[0])
           this.scanYaw = mv + Math.sin(obs.t * 1.3) * 0.9
         } else this.scanYaw = wrap(this.scanYaw + 0.35)
