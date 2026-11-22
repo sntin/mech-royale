@@ -43,6 +43,7 @@ export type Params = {
   cookTarget: number
   backTarget: number
   droneHunt: number
+  campEdge: number
   exploreUntil: number
   critUp: number
   fightCubeR: number
@@ -106,6 +107,7 @@ export const defaultParams: Params = {
   cookTarget: 0,
   backTarget: 0,
   droneHunt: 0,
+  campEdge: 0,
   exploreUntil: 150,
   critUp: 0.6,
   fightCubeR: 30,
@@ -210,7 +212,8 @@ export class Survivor implements Bot {
       const cov = nav.cover[c]
       s += cov < 9 ? 12 - Math.abs(cov - 5) : -cov * 0.3 // hug tall buildings
       s -= d2([x, y], me) * 0.04 // travel cost
-      s -= (d / Math.max(30, R)) * 6 // prefer toward center
+      if (this.P.campEdge > 0) s -= Math.abs(d / Math.max(30, R) - this.P.campEdge) * 30 // hold the zone edge: threats come from one side
+      else s -= (d / Math.max(30, R)) * 6 // prefer toward center
       for (const tr of this.p.tracks.values()) if (tr.kind === "mech" && obs.t - tr.t < 20) s -= Math.max(0, 120 - d2(tr.pos, [x, y])) * 0.15
       cands.push({ x, y, s })
     }
