@@ -42,6 +42,7 @@ export type Params = {
   flank: number
   cookTarget: number
   backTarget: number
+  droneHunt: number
   exploreUntil: number
   critUp: number
   fightCubeR: number
@@ -104,6 +105,7 @@ export const defaultParams: Params = {
   flank: 0,
   cookTarget: 0,
   backTarget: 0,
+  droneHunt: 0,
   exploreUntil: 150,
   critUp: 0.6,
   fightCubeR: 30,
@@ -416,6 +418,7 @@ export class Survivor implements Bot {
   healing = false
   crit = false
   armT = -1
+  npcMem = new Map<number, { pos: number[]; t: number }>()
   visited = new Set<string>()
   exploreGoal: number[] | null = null
   exploreUntilT = 0
@@ -577,6 +580,11 @@ export class Survivor implements Bot {
     let lootGoal: number[] | null = null
     let lootTake: number | null = null
     if (this.armT < 0 && obs.self.weapons[1]) this.armT = obs.t
+    for (const n of obs.mechs) if (n.kind === "npc") this.npcMem.set(n.id, { pos: n.pos, t: obs.t })
+    {
+      const vis = new Set(obs.mechs.map((m) => m.id))
+      for (const [id, n] of this.npcMem) if (!vis.has(id) && (d2(n.pos, obs.self.pos) < 40 || obs.t - n.t > 90)) this.npcMem.delete(id)
+    }
     // remember crates we have seen (forget destroyed ones)
     for (const c of obs.crates) this.crateMem.set(c.id, { pos: c.pos, t: obs.t })
     const crIds = new Set(obs.crates.map((c) => c.id))
@@ -747,6 +755,15 @@ export class Survivor implements Bot {
       mode = "travel"
     } else {
       goal = this.camp ?? sc.c
+      if (this.P.droneHunt > 0 && obs.t < this.P.droneHunt && !zoneUrgent && hpFrac > 0.6) {
+        // early game: go kill drones for cubes (upgrades at 1, 3, 6 cubes)
+        let bd = 260, bn: number[] | null = null
+        for (const [, n] of this.npcMem) {
+          const d = d2(n.pos, pos)
+          if (d < bd && d2(n.pos, sc.c) < sc.r - 10) (bd = d), (bn = n.pos)
+        }
+        if (bn) goal = bn
+      }
       if (this.P.pursue > 0 && !zoneUrgent && hpFrac > this.P.pursueHp) {
         // go after the nearest recently seen mech, if it is alone
         let bt: any = null, bd = this.P.pursue
