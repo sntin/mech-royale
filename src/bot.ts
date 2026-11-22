@@ -28,6 +28,8 @@ export type Params = {
   salt: number
   lat: number
   lethal: number
+  critHp: number
+  critUp: number
   fightCubeR: number
   fightFetch: number
   pickMemory: boolean
@@ -74,6 +76,8 @@ export const defaultParams: Params = {
   salt: 0,
   lat: 0,
   lethal: 0,
+  critHp: 0,
+  critUp: 0.6,
   fightCubeR: 30,
   fightFetch: 110,
   pickMemory: false,
@@ -333,6 +337,7 @@ export class Survivor implements Bot {
   curTarget = -1
   curTargetT = -1e9
   healing = false
+  crit = false
 
   // sidestep vector for bullets that would pass close in the next 0.8 s, or away from mortar impacts
   dodgeVec(obs: Observation): number[] | null {
@@ -469,7 +474,13 @@ export class Survivor implements Bot {
     const extra = Math.max(0, nThreat - 1) * this.P.retreatPerExtra
     const weak = (hpFrac < this.P.fightHpFrac + extra || (this.P.reengageHp < 1 && this.healing && !(target && d2(target.pos, pos) < 30))) && (target ? (target.hp ?? 1400) > me.hp * 0.7 : true)
     const recentlyHurt = obs.t - this.lastHurtT < 1.5
-    if (!this.P.berserk && nThreat > 0 && (outnumbered || weak)) mode = "retreat"
+    if (this.P.critHp > 0) {
+      if (hpFrac < this.P.critHp) this.crit = true
+      if (hpFrac >= this.P.critUp) this.crit = false
+    }
+    const critRun = this.crit && nThreat > 0 && !(target && (target.hp ?? 1400) < me.hp * 0.7)
+    if (critRun) mode = "retreat"
+    else if (!this.P.berserk && nThreat > 0 && (outnumbered || weak)) mode = "retreat"
     else if (target && d2(target.pos, pos) < this.P.engageRange) mode = "fight"
     else if (!this.P.berserk && recentlyHurt && !target) mode = "retreat"
     else mode = "travel"
