@@ -46,6 +46,7 @@ export type Params = {
   campEdge: number
   kite: boolean
   ambush: boolean
+  fortressT: number
   exploreUntil: number
   critUp: number
   fightCubeR: number
@@ -112,6 +113,7 @@ export const defaultParams: Params = {
   campEdge: 0,
   kite: false,
   ambush: false,
+  fortressT: 1e9,
   exploreUntil: 150,
   critUp: 0.6,
   fightCubeR: 30,
@@ -783,7 +785,7 @@ export class Survivor implements Bot {
         }
         if (bn) goal = bn
       }
-      if (this.P.pursue > 0 && !zoneUrgent && hpFrac > this.P.pursueHp) {
+      if (this.P.pursue > 0 && !zoneUrgent && hpFrac > this.P.pursueHp && obs.t < this.P.fortressT) {
         // go after the nearest recently seen mech, if it is alone
         let bt: any = null, bd = this.P.pursue
         for (const tr of p.tracks.values()) {
