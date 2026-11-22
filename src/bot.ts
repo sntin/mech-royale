@@ -47,6 +47,7 @@ export type Params = {
   kite: boolean
   ambush: boolean
   fortressT: number
+  sneak: boolean
   exploreUntil: number
   critUp: number
   fightCubeR: number
@@ -114,6 +115,7 @@ export const defaultParams: Params = {
   kite: false,
   ambush: false,
   fortressT: 1e9,
+  sneak: false,
   exploreUntil: 150,
   critUp: 0.6,
   fightCubeR: 30,
@@ -427,6 +429,7 @@ export class Survivor implements Bot {
   healing = false
   crit = false
   armT = -1
+  sneakT = -1
   npcMem = new Map<number, { pos: number[]; t: number }>()
   visited = new Set<string>()
   exploreGoal: number[] | null = null
@@ -804,7 +807,7 @@ export class Survivor implements Bot {
         if (bt) {
           let crowd = 0
           for (const tr of p.tracks.values()) if (tr.kind === "mech" && obs.t - tr.t < 20 && d2(tr.pos, bt.pos) < 80) crowd++
-          if (crowd <= this.P.pursueCrowd) goal = bt.pos
+          if (crowd <= this.P.pursueCrowd) (goal = bt.pos), (this.sneakT = this.P.sneak && bd < 160 ? obs.t : this.sneakT)
         }
       }
       const dg = d2(goal, pos)
@@ -814,6 +817,11 @@ export class Survivor implements Bot {
       const urgent = zoneUrgent || dg > 150
       boost = urgent && me.energy > 30 && (tooFarFromZone || dg > 60)
       if (!urgent && (dg < 25 || this.P.silent)) move = [move[0] * 0.4, move[1] * 0.4]
+      if (this.sneakT === obs.t && !urgent) {
+        // stalk silently (<=5 m/s makes no footstep sound) to get first shots, often from behind
+        move = [move[0] * 0.4, move[1] * 0.4]
+        boost = false
+      }
       mode = dg > 4 ? "travel" : "camp"
     }
     if (zoneUrgent && mode !== "fight") boost = me.energy > 15 || boost
