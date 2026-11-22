@@ -29,6 +29,7 @@ export type Params = {
   lat: number
   lethal: number
   critHp: number
+  coverFight: boolean
   critUp: number
   fightCubeR: number
   fightFetch: number
@@ -77,6 +78,7 @@ export const defaultParams: Params = {
   lat: 0,
   lethal: 0,
   critHp: 0,
+  coverFight: false,
   critUp: 0.6,
   fightCubeR: 30,
   fightFetch: 110,
@@ -323,6 +325,55 @@ export class Survivor implements Bot {
     }
     const a = Math.atan2(r.y - pos[1], r.x - pos[0])
     return { move: [Math.cos(a), Math.sin(a)], jump: me.grounded, boost: !me.grounded || pos[2] < r.z, mode: "travel" }
+  }
+
+  // sample short moves around us; score range, line of fire to target, exposure to other enemies
+  fightSample(obs: Observation, tg: ActorObs, want: number, visible: ActorObs[], wantLos: number): number[] | null {
+    const me = obs.self, pos = me.pos, p = this.p, w = p.w
+    const mh = me.stats.muzzle_height ?? 7
+    const th = tg.kind === "mech" ? 9 * (1 + 0.05 * (tg.cubes ?? 0)) : 3.5
+    const tz = tg.pos[2] + th * 0.6
+    const toT = Math.atan2(tg.pos[1] - pos[1], tg.pos[0] - pos[0])
+    const sx = Math.cos(toT + (this.strafeDir * Math.PI) / 2), sy = Math.sin(toT + (this.strafeDir * Math.PI) / 2)
+    const sc = this.safeCircle(obs)
+    let best = -1e9, bm: number[] | null = null, sideBlocked = false
+    for (let k = -1; k < 16; k++) {
+      let cx = pos[0], cy = pos[1], dx = 0, dy = 0, r = 0
+      if (k >= 0) {
+        const a = (k * Math.PI) / 8
+        r = 6
+        dx = Math.cos(a), dy = Math.sin(a)
+        cx += dx * r, cy += dy * r
+        if (!p.nav.isFree(cx, cy) || !p.nav.lineFree(pos[0], pos[1], cx, cy)) {
+          if (dx * sx + dy * sy > 0.9) sideBlocked = true
+          continue
+        }
+      }
+      const cz = w.terrain(cx, cy)
+      const d = Math.hypot(tg.pos[0] - cx, tg.pos[1] - cy)
+      let s = -1.1 * Math.abs(d - want) - r * 0.4
+      const los = w.los(cx, cy, cz + mh, tg.pos[0], tg.pos[1], tz)
+      if (los) s += 45 * wantLos
+      for (const e of visible) {
+        if (e.id === tg.id || Math.hypot(e.pos[0] - cx, e.pos[1] - cy) > 170) continue
+        if (w.los(e.pos[0], e.pos[1], e.pos[2] + 8, cx, cy, cz + 5.4)) s -= 30
+      }
+      const dz = Math.hypot(cx - sc.c[0], cy - sc.c[1]) - (sc.r - 8)
+      if (dz > 0) s -= dz * 4
+      const ci = p.nav.idx(cx, cy)
+      if (ci >= 0 && p.nav.clear[ci] < 4) s -= (4 - p.nav.clear[ci]) * 2.5
+      if (wantLos > 0) s += 9 * (dx * sx + dy * sy)
+      if (k < 0) {
+        s -= 8
+        if (wantLos < 0 && !los) s += 14
+      }
+      if (s > best) (best = s), (bm = k < 0 ? [0, 0] : [dx, dy])
+    }
+    if (sideBlocked) {
+      this.strafeDir *= -1
+      this.strafeUntil = obs.t + 0.5
+    }
+    return bm
   }
 
   losTo(obs: Observation, t: ActorObs): boolean {
@@ -586,6 +637,17 @@ export class Survivor implements Bot {
         const perp2 = toT + (this.strafeDir * Math.PI) / 2
         move = [Math.cos(perp2), Math.sin(perp2)]
         if (!p.nav.isFree(pos[0] + move[0] * 6, pos[1] + move[1] * 6)) move = p.steer(radial >= 0 ? target.pos : this.camp ?? sc.c)
+      }
+      if (this.P.coverFight) {
+        // want line of fire only when something can shoot soon
+        const g = me.weapons.find((w) => w?.kind === "gun")
+        const sec = me.weapons[1]
+        const gunReady = !!g && (g.reload ?? 0) <= 0.3 && (g.ammo ?? 1) > 0
+        const secReady = !!sec && sec.kind !== "gun" && (sec.cooldown ?? 0) < 0.4 && !(sec.kind === "lightning" && me.energy < 10)
+        let wantLos = gunReady || secReady || (sec?.kind === "laser" && (sec.charge ?? 0) > 0) ? 1 : -1
+        for (const e of visible) if (e.charging && Math.abs(wrap(e.aim[0] - Math.atan2(pos[1] - e.pos[1], pos[0] - e.pos[0]))) < 0.2 && !(sec?.kind === "laser" && (sec.charge ?? 0) > 0)) wantLos = -1
+        const mv = this.fightSample(obs, target, want, visible, wantLos)
+        if (mv) move = mv
       }
       if (this.P.fightBoost && me.energy > this.P.fightBoost) boost = true
       // laser dodge
