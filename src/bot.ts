@@ -37,6 +37,8 @@ export type Params = {
   pursue: number
   pursueCrowd: number
   pursueSound: boolean
+  pursueHp: number
+  pursueMem: number
   exploreUntil: number
   critUp: number
   fightCubeR: number
@@ -94,6 +96,8 @@ export const defaultParams: Params = {
   pursue: 0,
   pursueCrowd: 1,
   pursueSound: false,
+  pursueHp: 0.7,
+  pursueMem: 20,
   exploreUntil: 150,
   critUp: 0.6,
   fightCubeR: 30,
@@ -727,11 +731,11 @@ export class Survivor implements Bot {
       mode = "travel"
     } else {
       goal = this.camp ?? sc.c
-      if (this.P.pursue > 0 && !zoneUrgent && hpFrac > 0.7) {
+      if (this.P.pursue > 0 && !zoneUrgent && hpFrac > this.P.pursueHp) {
         // go after the nearest recently seen mech, if it is alone
         let bt: any = null, bd = this.P.pursue
         for (const tr of p.tracks.values()) {
-          if (tr.kind !== "mech" || obs.t - tr.t > 20) continue
+          if (tr.kind !== "mech" || obs.t - tr.t > this.P.pursueMem) continue
           const d = d2(tr.pos, pos)
           if (d < bd && d2(tr.pos, sc.c) < sc.r) (bd = d), (bt = tr)
         }
