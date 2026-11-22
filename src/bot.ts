@@ -31,6 +31,7 @@ export type Params = {
   critHp: number
   coverFight: boolean
   healGate: number
+  crateSeek: number
   critUp: number
   fightCubeR: number
   fightFetch: number
@@ -81,6 +82,7 @@ export const defaultParams: Params = {
   critHp: 0,
   coverFight: false,
   healGate: 0,
+  crateSeek: 0,
   critUp: 0.6,
   fightCubeR: 30,
   fightFetch: 110,
@@ -391,6 +393,8 @@ export class Survivor implements Bot {
   curTargetT = -1e9
   healing = false
   crit = false
+  armT = -1
+  crateMem = new Map<number, { pos: number[]; t: number }>()
 
   // sidestep vector for bullets that would pass close in the next 0.8 s, or away from mortar impacts
   dodgeVec(obs: Observation): number[] | null {
@@ -542,6 +546,11 @@ export class Survivor implements Bot {
     // loot opportunities (only when no fight)
     let lootGoal: number[] | null = null
     let lootTake: number | null = null
+    if (this.armT < 0 && obs.self.weapons[1]) this.armT = obs.t
+    // remember crates we have seen (forget destroyed ones)
+    for (const c of obs.crates) this.crateMem.set(c.id, { pos: c.pos, t: obs.t })
+    const crIds = new Set(obs.crates.map((c) => c.id))
+    for (const [id, c] of this.crateMem) if (!crIds.has(id) && (d2(c.pos, pos) < 40 || obs.t - c.t > 150)) this.crateMem.delete(id)
     // remember weapon pickups we have seen
     for (const pk of obs.pickups) this.pickMem.set(pk.id, { id: pk.id, kind: pk.kind, pos: pk.pos, t: obs.t })
     const visIds = new Set(obs.pickups.map((q) => q.id))
@@ -565,6 +574,14 @@ export class Survivor implements Bot {
         if (d2(pk.pos, zn.c) > zn.r - 10) continue
         const s = v * 100 - d
         if (s > bs) (bs = s), (lootGoal = pk.pos), (lootTake = pk.id)
+      }
+      if (!lootGoal && this.P.crateSeek > 0 && !w[1] && !fighting) {
+        let bd = this.P.crateSeek
+        for (const c of this.crateMem.values()) {
+          const d = d2(c.pos, pos)
+          if (d < bd && Math.abs(c.pos[2] - pos[2]) < 5 && d2(c.pos, zn.c) < zn.r - 10) (bd = d), (lootGoal = c.pos)
+        }
+        if (lootGoal && d2(lootGoal, pos) < 22) lootGoal = null // close enough: stand and shoot it
       }
       if (!lootGoal) {
         let bd = fighting ? this.P.fightCubeR : obs.t < this.P.farmUntil ? 60 : 30

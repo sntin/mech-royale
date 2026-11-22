@@ -57,7 +57,7 @@ for (let k = 0; k < +n; k++) {
   }
   const us = sim.mechs[ourSlot]
   const houseDead = sim.mechs.filter((m) => m.house && !m.alive).length
-  out.push({ seed, place: us.place, score: 16 - us.place, deathT: us.alive ? sim.t : +us.deathT.toFixed(1), kills: us.kills, cubes: us.cubes, taken: Math.round(us.dmgTaken), dealt: Math.round(us.dmgDealt), houseDead, ms: Math.round(performance.now() - t0), w2: (us as any).w2, cause: us.alive ? 'alive' : ((us as any).lastW ?? 'zone'), stuckN: (us.bot as any).stuckN ?? 0, byW: (us as any).byW, att: [...new Set(((us as any).recent ?? []).filter((r: any) => r[0] > us.deathT - 10).map((r: any) => r[1]))].map((id: any) => id < 0 ? 'z' : (squad.cached.hunters.has(id) ? 'H' : 'n') + id).join(' '), maxAct: +Math.max(0, ...times).toFixed(1), over20: times.filter((x) => x > 20).length })
+  out.push({ seed, place: us.place, score: 16 - us.place, deathT: us.alive ? sim.t : +us.deathT.toFixed(1), kills: us.kills, cubes: us.cubes, taken: Math.round(us.dmgTaken), dealt: Math.round(us.dmgDealt), houseDead, ms: Math.round(performance.now() - t0), w2: (us as any).w2, cause: us.alive ? 'alive' : ((us as any).lastW ?? 'zone'), stuckN: (us.bot as any).stuckN ?? 0, armT: (us.bot as any).armT, byW: (us as any).byW, att: [...new Set(((us as any).recent ?? []).filter((r: any) => r[0] > us.deathT - 10).map((r: any) => r[1]))].map((id: any) => id < 0 ? 'z' : (squad.cached.hunters.has(id) ? 'H' : 'n') + id).join(' '), maxAct: +Math.max(0, ...times).toFixed(1), over20: times.filter((x) => x > 20).length })
   console.log(JSON.stringify(out.at(-1)))
   if (process.env.LOG) console.log(sim.log.join('\n'))
 }
