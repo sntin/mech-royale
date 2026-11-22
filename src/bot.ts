@@ -32,6 +32,7 @@ export type Params = {
   coverFight: boolean
   healGate: number
   crateSeek: number
+  cubeR: number
   critUp: number
   fightCubeR: number
   fightFetch: number
@@ -83,6 +84,7 @@ export const defaultParams: Params = {
   coverFight: false,
   healGate: 0,
   crateSeek: 0,
+  cubeR: 0,
   critUp: 0.6,
   fightCubeR: 30,
   fightFetch: 110,
@@ -584,7 +586,7 @@ export class Survivor implements Bot {
         if (lootGoal && d2(lootGoal, pos) < 22) lootGoal = null // close enough: stand and shoot it
       }
       if (!lootGoal) {
-        let bd = fighting ? this.P.fightCubeR : obs.t < this.P.farmUntil ? 60 : 30
+        let bd = fighting ? this.P.fightCubeR : this.P.cubeR > 0 && visible.length === 0 ? this.P.cubeR : obs.t < this.P.farmUntil ? 60 : 30
         for (const cu of obs.cubes) {
           const d = d2(cu.pos, pos)
           if (d < bd && Math.abs(cu.pos[2] - pos[2]) < 4 && d2(cu.pos, zn.c) < zn.r - 10) (bd = d), (lootGoal = cu.pos)
