@@ -33,6 +33,8 @@ export type Params = {
   healGate: number
   crateSeek: number
   cubeR: number
+  explore: boolean
+  exploreUntil: number
   critUp: number
   fightCubeR: number
   fightFetch: number
@@ -85,6 +87,8 @@ export const defaultParams: Params = {
   healGate: 0,
   crateSeek: 0,
   cubeR: 0,
+  explore: false,
+  exploreUntil: 150,
   critUp: 0.6,
   fightCubeR: 30,
   fightFetch: 110,
@@ -396,6 +400,9 @@ export class Survivor implements Bot {
   healing = false
   crit = false
   armT = -1
+  visited = new Set<string>()
+  exploreGoal: number[] | null = null
+  exploreUntilT = 0
   crateMem = new Map<number, { pos: number[]; t: number }>()
 
   // sidestep vector for bullets that would pass close in the next 0.8 s, or away from mortar impacts
@@ -689,6 +696,29 @@ export class Survivor implements Bot {
         }
         this.lootBan.set(lootTake, obs.t + 3)
       }
+    } else if (this.P.explore && !me.weapons[1] && obs.t < this.P.exploreUntil && !zoneUrgent) {
+      // no 2nd weapon yet: walk through areas we have not looked at
+      const C = 50
+      const key = (x: number, y: number) => `${Math.floor(x / C)},${Math.floor(y / C)}`
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) this.visited.add(key(pos[0] + dx * C * 0.8, pos[1] + dy * C * 0.8))
+      if (!this.exploreGoal || this.visited.has(key(this.exploreGoal[0], this.exploreGoal[1])) || obs.t > this.exploreUntilT) {
+        let bs = -1e9, bg: number[] | null = null
+        const R = Math.max(10, sc.r - 25)
+        for (let k = 0; k < 120; k++) {
+          const a = p.rnd() * Math.PI * 2, d = Math.sqrt(p.rnd()) * R
+          const x = sc.c[0] + Math.cos(a) * d, y = sc.c[1] + Math.sin(a) * d
+          if (!p.nav.isFree(x, y) || this.visited.has(key(x, y))) continue
+          let sc2 = -d2([x, y], pos)
+          for (const tr of p.tracks.values()) if (tr.kind === "mech" && obs.t - tr.t < 15) sc2 -= Math.max(0, 100 - d2(tr.pos, [x, y])) * 1.5
+          if (sc2 > bs) (bs = sc2), (bg = [x, y])
+        }
+        this.exploreGoal = bg
+        this.exploreUntilT = obs.t + 25
+      }
+      goal = this.exploreGoal ?? this.camp ?? sc.c
+      move = p.steer(goal)
+      boost = me.energy > 50
+      mode = "travel"
     } else {
       goal = this.camp ?? sc.c
       const dg = d2(goal, pos)
@@ -834,7 +864,7 @@ export class Survivor implements Bot {
         if (s && obs.t - s.t < 2.5) look = s.bearing
       }
       if (look === null) {
-        if (this.P.spinScan && !me.weapons[1] && obs.t < 90) this.scanYaw = wrap(this.scanYaw + 0.5)
+        if (this.P.spinScan && !me.weapons[1] && obs.t < this.P.exploreUntil) this.scanYaw = wrap(this.scanYaw + 0.5)
         else if (mode === "travel" && Math.hypot(move[0], move[1]) > 0.3) {
           const mv = Math.atan2(move[1], move[0])
           this.scanYaw = mv + Math.sin(obs.t * 1.3) * 0.9
