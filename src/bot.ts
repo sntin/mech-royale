@@ -36,6 +36,7 @@ export type Params = {
   explore: boolean
   pursue: number
   pursueCrowd: number
+  pursueSound: boolean
   exploreUntil: number
   critUp: number
   fightCubeR: number
@@ -92,6 +93,7 @@ export const defaultParams: Params = {
   explore: false,
   pursue: 0,
   pursueCrowd: 1,
+  pursueSound: false,
   exploreUntil: 150,
   critUp: 0.6,
   fightCubeR: 30,
@@ -732,6 +734,14 @@ export class Survivor implements Bot {
           if (tr.kind !== "mech" || obs.t - tr.t > 20) continue
           const d = d2(tr.pos, pos)
           if (d < bd && d2(tr.pos, sc.c) < sc.r) (bd = d), (bt = tr)
+        }
+        if (!bt && this.P.pursueSound) {
+          const snd = this.sounds.filter((q) => ["gun", "laser", "lightning", "mortar"].includes(q.kind) && obs.t - q.t < 6).sort((a, b) => b.t - a.t)[0]
+          if (snd) {
+            const r = snd.dist === "near" ? 50 : snd.dist === "mid" ? 110 : 200
+            const gx = pos[0] + Math.cos(snd.bearing) * r, gy = pos[1] + Math.sin(snd.bearing) * r
+            if (Math.hypot(gx - sc.c[0], gy - sc.c[1]) < sc.r) goal = [gx, gy]
+          }
         }
         if (bt) {
           let crowd = 0
