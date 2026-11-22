@@ -27,6 +27,7 @@ export type Params = {
   swapR: number
   salt: number
   lat: number
+  lethal: number
   fightCubeR: number
   fightFetch: number
   pickMemory: boolean
@@ -72,6 +73,7 @@ export const defaultParams: Params = {
   swapR: 90,
   salt: 0,
   lat: 0,
+  lethal: 0,
   fightCubeR: 30,
   fightFetch: 110,
   pickMemory: false,
@@ -688,6 +690,12 @@ export class Survivor implements Bot {
               const tol = Math.atan2(1.8, L.dist)
               const ready = charge >= full - 0.02
               fire[s] = !(ready && p.aimError(L2.aim) < tol)
+              if (this.P.lethal > 0 && !ready && charge >= (wp.stats.min_charge ?? 0.15) && tgt.hp != null) {
+                const cc = this.cfg.cubes ?? {}
+                let dmg = wp.stats.damage * ((wp.stats.min_frac ?? 0.35) + (1 - (wp.stats.min_frac ?? 0.35)) * Math.min(1, charge / full)) * (1 + (cc.damage_per_cube ?? 0) * Math.min(me.cubes ?? 0, cc.stat_cap ?? 10))
+                if ((tgt.weapons ?? []).includes("mortar")) dmg *= 1 + (wp.stats.cookoff ?? 0)
+                if (dmg * this.P.lethal >= tgt.hp && p.aimError(L2.aim) < tol * 0.9) fire[s] = false
+              }
               if (charge > full + 1.5) fire[s] = false
             }
           }
