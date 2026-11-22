@@ -39,6 +39,9 @@ export type Params = {
   pursueSound: boolean
   pursueHp: number
   pursueMem: number
+  flank: number
+  cookTarget: number
+  backTarget: number
   exploreUntil: number
   critUp: number
   fightCubeR: number
@@ -98,6 +101,9 @@ export const defaultParams: Params = {
   pursueSound: false,
   pursueHp: 0.7,
   pursueMem: 20,
+  flank: 0,
+  cookTarget: 0,
+  backTarget: 0,
   exploreUntil: 150,
   critUp: 0.6,
   fightCubeR: 30,
@@ -514,6 +520,11 @@ export class Survivor implements Bot {
       let bs = 1e9
       for (const e of hostile) {
         let s = d2(e.pos, pos) + (e.hp ?? 1400) * (this.P.secure ? 0.1 : 0.05)
+        if (this.P.cookTarget && (e.weapons ?? []).includes("mortar") && obs.self.weapons.some((w) => w?.kind === "laser")) s -= this.P.cookTarget
+        if (this.P.backTarget) {
+          const ph = Math.atan2(pos[1] - e.pos[1], pos[0] - e.pos[0])
+          if (Math.abs(wrap(ph - e.aim[0])) > Math.PI / 2) s -= this.P.backTarget
+        }
         if (this.P.secure) {
           if ((e.hp ?? 1400) <= 0.3 * (e.max_hp ?? 1400)) s -= 200
           if (e.id === this.curTarget && obs.t - this.curTargetT < 2) s -= 200
@@ -661,6 +672,11 @@ export class Survivor implements Bot {
       const toT = Math.atan2(target.pos[1] - pos[1], target.pos[0] - pos[0])
       if (obs.t > this.strafeUntil) {
         this.strafeDir = p.rnd() < 0.5 ? -1 : 1
+        if (this.P.flank && target.kind === "mech" && p.rnd() < this.P.flank) {
+          // circle toward the target's back (rear hits deal 1.5x)
+          const phi = Math.atan2(pos[1] - target.pos[1], pos[0] - target.pos[0])
+          this.strafeDir = wrap(phi - target.aim[0]) > 0 ? -1 : 1
+        }
         this.strafeUntil = obs.t + this.P.strafeMin + p.rnd() * this.P.strafeVar
       }
       const perp = toT + (this.strafeDir * Math.PI) / 2
