@@ -1,1 +1,1 @@
-{ "drops": false, "exposureW": 0, "dodge": true, "berserk": true, "engageRange": 200, "fightLoot": true, "pickMemory": true, "fightFetch": 200, "lootR": 220, "swapR": 220, "gunDist": 90, "lat": 0.075, "weaponPref": { "laser": 3, "lightning": 2, "mortar": 1, "gun": 0 } }
+{ "drops": false, "exposureW": 0, "dodge": true, "berserk": true, "engageRange": 200, "fightLoot": true, "pickMemory": true, "fightFetch": 200, "lootR": 220, "swapR": 220, "gunDist": 90, "lat": 0.075, "passive": false, "chase": true }
