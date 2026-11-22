@@ -26,6 +26,7 @@ export type Params = {
   fightLoot: boolean
   swapR: number
   salt: number
+  lat: number
   fightCubeR: number
   fightFetch: number
   pickMemory: boolean
@@ -70,6 +71,7 @@ export const defaultParams: Params = {
   fightLoot: false,
   swapR: 90,
   salt: 0,
+  lat: 0,
   fightCubeR: 30,
   fightFetch: 110,
   pickMemory: false,
@@ -132,6 +134,7 @@ export class Survivor implements Bot {
     this.P = { ...defaultParams, ...params }
     this.cfg = hello.config
     this.p = new Pilot(hello, w, nav, (((hello.seed as number) || 12345) ^ (this.P.salt | 0)) || 12345)
+    this.p.lat = this.P.lat
     this.myId = hello.slot as number
   }
 

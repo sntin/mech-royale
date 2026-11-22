@@ -17,6 +17,7 @@ export class Pilot {
   nav: Nav
   cfg: any
   rnd: () => number
+  lat = 0
   // nav state
   path: [number, number][] | null = null
   pathGoal: number[] | null = null
@@ -103,15 +104,17 @@ export class Pilot {
   leadAim(tpos: number[], tvel: number[], v: number, zOff = 4.5): { aim: number[]; tof: number; dist: number } {
     const me = this.obs.self
     const mz = me.pos[2] + (me.stats.muzzle_height ?? 7)
-    const o = [me.pos[0], me.pos[1], mz]
+    const lat = this.lat
+    const o = [me.pos[0] + me.vel[0] * lat, me.pos[1] + me.vel[1] * lat, mz]
     let p = [tpos[0], tpos[1], tpos[2] + zOff]
     let tof = 0
     if (isFinite(v)) {
       for (let it = 0; it < 3; it++) {
         const d = Math.hypot(p[0] - o[0], p[1] - o[1], p[2] - o[2])
         tof = Math.max(0, d - 3) / v
+        const tt = tof + lat
         const vz = Math.abs(tvel[2]) > 0.5 ? tvel[2] : 0
-        p = [tpos[0] + tvel[0] * tof, tpos[1] + tvel[1] * tof, tpos[2] + zOff + vz * tof * 0.5]
+        p = [tpos[0] + tvel[0] * tt, tpos[1] + tvel[1] * tt, tpos[2] + zOff + vz * tt * 0.5]
       }
     }
     const dx = p[0] - o[0], dy = p[1] - o[1], dz = p[2] - o[2]
