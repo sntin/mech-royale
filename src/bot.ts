@@ -44,6 +44,8 @@ export type Params = {
   backTarget: number
   droneHunt: number
   campEdge: number
+  kite: boolean
+  ambush: boolean
   exploreUntil: number
   critUp: number
   fightCubeR: number
@@ -108,6 +110,8 @@ export const defaultParams: Params = {
   backTarget: 0,
   droneHunt: 0,
   campEdge: 0,
+  kite: false,
+  ambush: false,
   exploreUntil: 150,
   critUp: 0.6,
   fightCubeR: 30,
@@ -692,8 +696,13 @@ export class Survivor implements Bot {
       }
       const perp = toT + (this.strafeDir * Math.PI) / 2
       let radial = d > want + 15 ? 1 : d < want - 15 ? -1 : 0
-      let mx = Math.cos(perp) + radial * Math.cos(toT) * 0.8
-      let my = Math.sin(perp) + radial * Math.sin(toT) * 0.8
+      let side = 1
+      if (this.P.kite) {
+        radial = d > want + 40 ? 1 : -1
+        side = 0.5
+      }
+      let mx = Math.cos(perp) * side + radial * Math.cos(toT) * 0.8
+      let my = Math.sin(perp) * side + radial * Math.sin(toT) * 0.8
       const L = Math.hypot(mx, my)
       move = [mx / L, my / L]
       // avoid walking into walls: test a short probe
@@ -714,6 +723,13 @@ export class Survivor implements Bot {
         for (const e of visible) if (e.charging && Math.abs(wrap(e.aim[0] - Math.atan2(pos[1] - e.pos[1], pos[0] - e.pos[0]))) < 0.2 && !(sec?.kind === "laser" && (sec.charge ?? 0) > 0)) wantLos = -1
         const mv = this.fightSample(obs, target, want, visible, wantLos)
         if (mv) move = mv
+      }
+      if (this.P.ambush) {
+        // let an approaching enemy walk into our range: hold still, keep aiming
+        const closing = ((target.vel[0] * (pos[0] - target.pos[0]) + target.vel[1] * (pos[1] - target.pos[1])) / Math.max(1, d))
+        if (closing < -2 || closing > 2) {
+          if (d > 30 && closing > 2 && obs.t - this.lastHurtT > 3 && this.losTo(obs, target)) move = [0, 0]
+        }
       }
       if (this.P.fightBoost && me.energy > this.P.fightBoost) boost = true
       // laser dodge
