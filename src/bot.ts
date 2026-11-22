@@ -30,6 +30,7 @@ export type Params = {
   lethal: number
   critHp: number
   coverFight: boolean
+  healGate: number
   critUp: number
   fightCubeR: number
   fightFetch: number
@@ -79,6 +80,7 @@ export const defaultParams: Params = {
   lethal: 0,
   critHp: 0,
   coverFight: false,
+  healGate: 0,
   critUp: 0.6,
   fightCubeR: 30,
   fightFetch: 110,
@@ -530,7 +532,8 @@ export class Survivor implements Bot {
       if (hpFrac >= this.P.critUp) this.crit = false
     }
     const critRun = this.crit && nThreat > 0 && !(target && (target.hp ?? 1400) < me.hp * 0.7)
-    if (critRun) mode = "retreat"
+    const healRun = this.P.healGate > 0 && hpFrac < this.P.healGate && obs.t - this.lastHurtT > 2.5 && !!target && d2(target.pos, pos) > 50 && (target.hp ?? 1400) > 0.35 * (target.max_hp ?? 1400)
+    if (critRun || healRun) mode = "retreat"
     else if (!this.P.berserk && nThreat > 0 && (outnumbered || weak)) mode = "retreat"
     else if (target && d2(target.pos, pos) < this.P.engageRange) mode = "fight"
     else if (!this.P.berserk && recentlyHurt && !target) mode = "retreat"
